@@ -117,15 +117,34 @@ class NoSleepVideo implements INoSleep {
   }
 }
 
+type Version = [major: number, minor: number];
+function getIOSVersion(): Version | null {
+  if (!/iPod|iPhone|iPad/.test(navigator.userAgent)) return null;
+  const match = navigator.userAgent.match(/OS (\d+)_(\d+)/);
+  return match && [Number(match[1]), Number(match[2])];
+}
+
+function isVersionGTE(a: Version, b: Version): boolean {
+  return a[0] > b[0] || (a[0] === b[0] && a[1] >= b[1]);
+}
+
 // Detect native Wake Lock API support
+function shouldUseNative() {
+  if (!('wakeLock' in navigator)) return false;
+  // As of iOS 17.0.3, PWA mode does not support nativeWakeLock.
+  // Fixed as of 18.4.
+  // See <https://bugs.webkit.org/show_bug.cgi?id=254545>
+  const iOSVersion = getIOSVersion();
+  if (!iOSVersion) return true;
+  // @ts-expect-error: using non-standard standalone property
+  return !navigator.standalone || isVersionGTE(iOSVersion, [18, 4]);
+}
+
 const defaultExport: { new (): INoSleep } =
   typeof navigator === 'undefined'
     ? NoSleepSSR
-    : // As of iOS 17.0.3, PWA mode does not support nativeWakeLock.
-    // See <https://bugs.webkit.org/show_bug.cgi?id=254545>
-    // @ts-expect-error: using non-standard standalone property
-    'wakeLock' in navigator && !navigator.standalone
-    ? NoSleepNative
-    : NoSleepVideo;
+    : shouldUseNative()
+      ? NoSleepNative
+      : NoSleepVideo;
 
 export default defaultExport;
