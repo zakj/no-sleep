@@ -53,6 +53,7 @@
   },
   "scripts": {
     "lint": "prettier --check lib",
-    "build": "vite build"
+    "build": "vite build",
+    "prepublishOnly": "pnpm build"
   }
 }
